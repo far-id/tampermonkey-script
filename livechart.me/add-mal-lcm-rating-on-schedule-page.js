@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         MAL API Score Fetcher schedule Page
+// @name         Add MAL & LCM Rating on Schedule page
 // @namespace    http://tampermonkey.net/
 // @version      2025-09-27
 // @description  try to take over the world!
@@ -39,8 +39,7 @@
     });
   }
 
-  async function getAnimeScoreFromMAL(title) {
-    title = encodeURIComponent(title);
+  async function getAnimeRatingFromMAL(title) {
     try {
       // cari anime berdasarkan judul
       const anime = await gmFetch(`https://api.myanimelist.net/v2/anime?q=${title}&limit=1`, {
@@ -50,20 +49,20 @@
       });
       const data = await anime.json();
       if (!data.data || data.data.length === 0) {
-        console.log("Anime tidak ditemukan:", title);
+        console.log("MAL tidak menemukan:", title);
         return null;
       }
 
       const id = data.data[0].node.id;
 
-      // ambil score by anime ID
-      const scoreResp = await gmFetch(`https://api.myanimelist.net/v2/anime/${id}?fields=mean`, {
+      // ambil rating by anime ID
+      const ratingRes = await gmFetch(`https://api.myanimelist.net/v2/anime/${id}?fields=mean`, {
         headers: {
           "X-MAL-CLIENT-ID": "CLIENT-ID"
         }
       });
-      const scoreData = await scoreResp.json();
-      return scoreData.mean;
+      const ratingData = await ratingRes.json();
+      return ratingData.mean;
     }
     catch (err) {
       console.error("Error:", err);
@@ -71,35 +70,64 @@
     }
   }
 
-  function createRatingBadge(rating) {
+  async function getAnimeRatingFromLcm(title) {
+    try {
+      // cari anime berdasarkan judul
+      const anime = await gmFetch(`https://www.livechart.me/api/v1/anime?q=${title}&limit=1`);
+      const data = await anime.json();
+      if (!data.items || data.items.length === 0) {
+        console.log("LCM tidak menemukan:", title);
+        return null;
+      }
+
+      const rating = data.items[0].avg_rating;
+      return rating;
+    }
+    catch (err) {
+      console.error("Error:", err);
+      return null;
+    }
+  }
+
+  function createRatingBadge(rating, source) {
+    //source ="mal"/"lcm"
     const div = document.createElement("div");
-    div.className = "lc-tt-action-button-wrap text-xs";
-    div.style.marginTop = "-0.3rem";
+    div.className = "lc-tt-action-button-wrap";
+    div.style.cssText = `
+        margin-top: -0.3rem;
+        font-size: 0.66rem;
+        `;
 
     const span = document.createElement("span");
     span.textContent = rating;
     span.style.cssText = `
   border-radius: 0.5rem;
   background-color: rgba(29, 78, 216, 0.9);
-  padding: 0.125rem 0.5rem;
+  padding: 0.125rem 0.3rem;
   color: white;
   font-family: sans-serif;
 `;
-
+    if (source == "lcm") {
+      span.style.backgroundColor = "rgba(0, 0, 0, 0.65)";
+      div.style.marginLeft = "2rem";
+    }
     div.appendChild(span);
     return div;
   }
 
   // main
   elements.forEach(async (el) => {
-    const title = el.textContent.trim();
-    const score = await getAnimeScoreFromMAL(title);
+    const title = encodeURIComponent(el.textContent.trim());
+    const malRating = await getAnimeRatingFromMAL(title);
+    const lcmRating = await getAnimeRatingFromLcm(title);
 
-    if (score == null) {
-      return;
+    if (malRating !== null) {
+      let malBadge = createRatingBadge(malRating, "mal");
+      el.insertAdjacentElement("afterend", malBadge);
     }
-    let badge = createRatingBadge(score);
-    console.log(badge);
-    el.insertAdjacentElement("afterend", badge);
+    if (lcmRating !== null) {
+      let lcmBadge = createRatingBadge(lcmRating, "lcm");
+      el.insertAdjacentElement("afterend", lcmBadge);
+    }
   });
 })();

@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         MAL API Score Fetcher on Anime Page
+// @name         Add MAL Rating on Anime page
 // @namespace    http://tampermonkey.net/
 // @version      2025-09-27
 // @description  try to take over the world!
