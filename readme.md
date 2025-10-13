@@ -1,6 +1,6 @@
-# Tampermonkey Scripts for Japanese LN and Anime Tracking
+# Tampermonkey Scripts
 
-This repository contains **Tampermonkey scripts** for personal use, aimed at helping study Japanese light novels and track anime scores from MyAnimeList.
+This repository contains **Tampermonkey scripts** for personal use, aimed at helping me personaly like study Japanese light novels and track anime scores from MyAnimeList.
 
 ## Folder Structure
 
