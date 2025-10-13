@@ -5,7 +5,7 @@
 // @description  try to take over the world!
 // @author       You
 // @match        https://www.livechart.me/anime/*
-// @icon         data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=livechart.me
 // @grant        GM_xmlhttpRequest
 // @connect      api.myanimelist.net
 // ==/UserScript==
