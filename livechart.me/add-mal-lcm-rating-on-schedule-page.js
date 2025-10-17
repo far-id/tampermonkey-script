@@ -7,11 +7,15 @@
 // @match        https://www.livechart.me/schedule*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=livechart.me
 // @grant        GM_xmlhttpRequest
+// @grant        GM_setValue
+// @grant        GM_getValue
 // @connect      api.myanimelist.net
 // ==/UserScript==
 
 (function () {
   'use strict';
+
+  const CACHE_DURATION = 3 * 24 * 60 * 60 * 1000; // 3 hari
 
   const elements = document.querySelectorAll('a.lc-tt-anime-title');
 
@@ -40,11 +44,23 @@
   }
 
   async function getAnimeRatingFromMAL(title) {
+    const cacheKey = `mal_score_${title}`;
+    const cached = await GM_getValue(cacheKey);
+
+    // get rating from cache
+    if (cached) {
+      const { rating, timestamp } = cached;
+      if (Date.now() - timestamp < CACHE_DURATION) {
+        console.log(`[Cache hit] ${title}: ${rating}`);
+        return rating;
+      }
+    }
+
     try {
       // cari anime berdasarkan judul
       const anime = await gmFetch(`https://api.myanimelist.net/v2/anime?q=${title}&limit=1`, {
         headers: {
-          "X-MAL-CLIENT-ID": "CLIENT-ID"
+          "X-MAL-CLIENT-ID": "9766ecbd1e4eb8f213af94b72c29871e"
         }
       });
       const data = await anime.json();
@@ -58,10 +74,17 @@
       // ambil rating by anime ID
       const ratingRes = await gmFetch(`https://api.myanimelist.net/v2/anime/${id}?fields=mean`, {
         headers: {
-          "X-MAL-CLIENT-ID": "CLIENT-ID"
+          "X-MAL-CLIENT-ID": "9766ecbd1e4eb8f213af94b72c29871e"
         }
       });
+
       const ratingData = await ratingRes.json();
+      await GM_setValue(cacheKey, {
+        rating: ratingData.mean,
+        timestamp: Date.now(),
+      });
+      console.log("MAL cached", title);
+
       return ratingData.mean;
     }
     catch (err) {
@@ -71,6 +94,18 @@
   }
 
   async function getAnimeRatingFromLcm(title) {
+    const cacheKey = `lcm_score_${title}`;
+    const cached = await GM_getValue(cacheKey);
+
+    // get rating from cache
+    if (cached) {
+      const { rating, timestamp } = cached;
+      if (Date.now() - timestamp < CACHE_DURATION) {
+        console.log(`[Cache hit] ${title}: ${rating}`);
+        return rating;
+      }
+    }
+
     try {
       // cari anime berdasarkan judul
       const anime = await gmFetch(`https://www.livechart.me/api/v1/anime?q=${title}&limit=1`);
@@ -81,6 +116,12 @@
       }
 
       const rating = data.items[0].avg_rating;
+      await GM_setValue(cacheKey, {
+        rating: rating,
+        timestamp: Date.now(),
+      });
+      console.log("LCM cached", title);
+
       return rating;
     }
     catch (err) {
@@ -125,7 +166,7 @@
       let malBadge = createRatingBadge(malRating, "mal");
       el.insertAdjacentElement("afterend", malBadge);
     }
-    if (lcmRating !== null) {
+    if (lcmRating !== 0) {
       let lcmBadge = createRatingBadge(lcmRating, "lcm");
       el.insertAdjacentElement("afterend", lcmBadge);
     }
