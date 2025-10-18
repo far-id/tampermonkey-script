@@ -43,6 +43,10 @@
     });
   }
 
+  function limitString(text, limit = 86) {
+    return text.length > limit ? text.slice(0, limit) : text;
+  }
+
   async function getAnimeRatingFromMAL(title) {
     const cacheKey = `mal_score_${title}`;
     const cached = await GM_getValue(cacheKey);
@@ -60,10 +64,15 @@
       // cari anime berdasarkan judul
       const anime = await gmFetch(`https://api.myanimelist.net/v2/anime?q=${title}&limit=1`, {
         headers: {
-          "X-MAL-CLIENT-ID": "9766ecbd1e4eb8f213af94b72c29871e"
+          "X-MAL-CLIENT-ID": "CLIENT-ID"
         }
       });
       const data = await anime.json();
+
+      if (data.error != null) {
+        throw { title, "message": data.message, "error": data.error };
+      }
+
       if (!data.data || data.data.length === 0) {
         console.log("MAL tidak menemukan:", title);
         return null;
@@ -74,7 +83,7 @@
       // ambil rating by anime ID
       const ratingRes = await gmFetch(`https://api.myanimelist.net/v2/anime/${id}?fields=mean`, {
         headers: {
-          "X-MAL-CLIENT-ID": "9766ecbd1e4eb8f213af94b72c29871e"
+          "X-MAL-CLIENT-ID": "CLIENT-ID"
         }
       });
 
@@ -88,7 +97,9 @@
       return ratingData.mean;
     }
     catch (err) {
-      console.error("Error:", err);
+      console.error("Title:", err.title);
+      console.error("Error:", err.error);
+      console.error("Message:", err.message);
       return null;
     }
   }
@@ -158,7 +169,11 @@
 
   // main
   elements.forEach(async (el) => {
-    const title = encodeURIComponent(el.textContent.trim());
+    const title = limitString(
+      encodeURIComponent(
+        el.textContent.trim()
+      )
+    );
     const malRating = await getAnimeRatingFromMAL(title);
     const lcmRating = await getAnimeRatingFromLcm(title);
 

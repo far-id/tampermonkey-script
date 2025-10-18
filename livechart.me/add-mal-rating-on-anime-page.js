@@ -37,8 +37,11 @@
     });
   }
 
+  function limitString(text, limit = 86) {
+    return text.length > limit ? text.slice(0, limit) : text;
+  }
+
   async function getAnimeScoreFromMAL(title) {
-    title = encodeURIComponent(title);
     try {
       // cari anime berdasarkan judul
       const anime = await gmFetch(`https://api.myanimelist.net/v2/anime?q=${title}&limit=1`, {
@@ -46,61 +49,87 @@
           "X-MAL-CLIENT-ID": "CLIENT-ID"
         }
       });
-      const data = await anime.json();
-      if (!data.data || data.data.length === 0) {
-        console.log("Anime tidak ditemukan:", title);
-        return null;
-      }
 
-      const id = data.data[0].node.id;
+        const data = await anime.json();
 
-      // ambil score by anime ID
-      const scoreResp = await gmFetch(`https://api.myanimelist.net/v2/anime/${id}?fields=mean`, {
-        headers: {
-          "X-MAL-CLIENT-ID": "CLIENT-ID"
+        if (data.error != null) {
+          throw { title, "message": data.message, "error": data.error };
         }
-      });
-      const scoreData = await scoreResp.json();
-      return scoreData.mean;
-    }
-    catch (err) {
-      console.error("Error:", err);
+
+        if (!data.data || data.data.length === 0) {
+          console.log("Anime tidak ditemukan:", title);
+            throw new Error(`Anime Tidak ditemukan:${title}`);
+          }
+
+        const id = data.data[0].node.id;
+
+        // ambil score by anime ID
+        const scoreResp = await gmFetch(`https://api.myanimelist.net/v2/anime/${id}?fields=mean,num_scoring_users`, {
+          headers: {
+            "X-MAL-CLIENT-ID": "CLIENT-ID"
+          }
+        });
+        const scoreData = await scoreResp.json();
+
+        return {
+          "rating": scoreData.mean,
+          "users": scoreData.num_scoring_users
+        };
+      }
+      catch (err) {
+      console.error("Title:", err.title);
+      console.error("Error:", err.error);
+      console.error("Message:", err.message);
       return null;
     }
   }
 
-  function createRatingElement(rating) {
-    // buat div container
+  function createRatingElement(rating, users) {
     const container = document.createElement("div");
     container.className = "text-sm";
 
     const spanTitle = document.createElement("span");
     spanTitle.className = "font-medium";
-    spanTitle.textContent = "MAL Rating";
+    spanTitle.textContent = "MAL Rating"
 
     const div = document.createElement("div");
+    div.className = "block items-center";
 
+    const div2 = document.createElement("div");
     const spanRating = document.createElement("span");
     spanRating.textContent = rating;
     spanRating.className = "text-lg font-medium";
-
     const spanTotal = document.createElement("span");
     spanTotal.textContent = "/10";
     spanTotal.className = "text-sm text-base-content/75";
 
-    div.appendChild(spanRating);
-    div.appendChild(spanTotal);
+    const div3 = document.createElement("div");
+    const spanRatingUsers = document.createElement("span");
+    spanRatingUsers.className = "text-sm text-base-content/75";
+    spanRatingUsers.textContent = users + " Users";
+
+    div2.appendChild(spanRating);
+    div2.appendChild(spanTotal);
+    div3.appendChild(spanRatingUsers);
+    div.appendChild(div2);
+    div.appendChild(div3);
     container.appendChild(spanTitle);
-    container.appendChild(div);
+    container.appendChild(div)
 
     return container;
   }
 
   const title = document.querySelector('span.text-base-content').textContent.trim();
-  getAnimeScoreFromMAL(title).then(score => {
+  getAnimeScoreFromMAL(
+    limitString(
+      encodeURIComponent(title)
+    )
+  ).then(score => {
     const el = document.querySelector("div.cursor-pointer.flex.gap-2.items-center");
-    const elRating = createRatingElement(score);
+    const elRating = createRatingElement(score.rating, score.users);
     el.insertAdjacentElement("afterend", elRating);
-  });
+  }).catch(err => {
+    console.error("Gagal mengambil skor anime:", err);
+    });
 
 })();
